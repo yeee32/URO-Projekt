@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter import ttk 
+import MultiListbox as table
 
 class App:
     def __init__(self, root):
@@ -16,7 +17,7 @@ class App:
         # file
         self.file = Menu(self.top_menu, tearoff=0)
         self.top_menu.add_cascade(label = "File", menu = self.file)
-        self.file.add_command(label="Quit", command=None)
+        self.file.add_command(label="Quit", command=self.root.quit)
         self.root.config(menu = self.top_menu)
 
         # options
@@ -47,13 +48,31 @@ class App:
         self.tabs.add(self.stats_tab, text="Statistics")
         self.tabs.pack(expand=True, fill=BOTH)
 
-        # journal tab
-        ttk.Label(self.journal_tab, text="Journal tab").pack(fill=BOTH)
+        # journal tab        
+        # table
+        self.mlb = table.MultiListbox(
+            self.journal_tab,
+            (("Date", 20),
+             ("Name", 20),
+             ("Grade", 10))
+        )
+        
+        self.mlb.pack(fill=BOTH, side=LEFT, padx=5, pady=5)
+
+        # details on the right
+        self.detail_label_frame = LabelFrame(self.journal_tab, text="Details")
+        self.detail_label_frame.pack(fill=BOTH, padx=10, pady=10, expand=True)
+
+        self.detail_frame = Frame(self.detail_label_frame)
+        self.detail_frame.pack()
+
+        # buttons (add, edit, delete)
+        self.add_button = Button(self.journal_tab, text="Add")
 
         # stats tab
         ttk.Label(self.stats_tab, text="Stats tab").pack(fill=BOTH)
 
-
+    
     def new_options_window(self):
         print("Opened new options window")
 
