@@ -1,6 +1,8 @@
 from tkinter import *
 from tkinter import ttk 
+import tkinter.font as tf
 import MultiListbox as table
+from data import data
 
 class App:
     def __init__(self, root):
@@ -11,6 +13,19 @@ class App:
         self.root.geometry(f"{width}x{height}")
         self.root.resizable(False, False)
 
+
+        self.new_window = None
+        self.row = None
+
+        self.date = StringVar()
+        self.route_name = StringVar()
+        self.grade = StringVar()
+        self.place = StringVar()
+        self.num_tries = StringVar()
+        self.note = StringVar()
+        self.os_var = BooleanVar()
+        self.flash_var = BooleanVar()
+        self.rp_var = BooleanVar()
         # Menu at top 
         self.top_menu = Menu(self.root)
 
@@ -25,7 +40,6 @@ class App:
         self.top_menu.add_command(label="Options", command=self.new_options_window) # opens new options window
         self.root.config(menu = self.top_menu)
     
-
         # style
         self.tab_style = ttk.Style()
         w = 45
@@ -33,6 +47,8 @@ class App:
         # makes tabs bigger
         self.tab_style.theme_create("TabStyle", settings={"TNotebook.Tab": {"configure": {"padding": [w, h] },}})
         self.tab_style.theme_use("TabStyle")
+
+        label_font = tf.Font(family="Arial", size=15)
 
         # notebook tab (Journal, stats)
         # create tabs
@@ -57,17 +73,91 @@ class App:
              ("Grade", 10))
         )
         
+        for item in data:
+            self.mlb.insert(END, (item.get("date"), item.get("route_name"), item.get("grade")))
+
         self.mlb.pack(fill=BOTH, side=LEFT, padx=5, pady=5)
+        self.mlb.subscribe(lambda row: self.show(row))
 
         # details on the right
         self.detail_label_frame = LabelFrame(self.journal_tab, text="Details")
         self.detail_label_frame.pack(fill=BOTH, padx=10, pady=10, expand=True)
 
         self.detail_frame = Frame(self.detail_label_frame)
-        self.detail_frame.pack()
+        self.detail_frame.pack(expand=True, fill=BOTH, padx=5, pady=5)
+
+        self.detail_frame.columnconfigure(0, weight=0)  
+        self.detail_frame.columnconfigure(1, weight=1)  
+        self.detail_frame.columnconfigure(2, weight=2) 
+        self.detail_frame.rowconfigure(6, weight=1)     
+
+        # details content
+        self.title_lbl = Label(self.detail_frame, text="Name", font=label_font)
+        self.date_lbl = Label(self.detail_frame, text="Date", font=label_font)
+        self.grade_lbl = Label(self.detail_frame, text="Grade", font=label_font)
+        self.place_lbl = Label(self.detail_frame, text="Place", font=label_font)
+        self.tries_lbl = Label(self.detail_frame, text="Tries", font=label_font)
+
+        self.title_entry = Entry(self.detail_frame, width=18, textvariable=self.route_name)
+        self.date_entry = Entry(self.detail_frame, width=18, textvariable=self.date)
+        self.grade_entry = Entry(self.detail_frame, width=18, textvariable=self.grade)
+        self.place_entry = Entry(self.detail_frame, width=18, textvariable=self.place)
+        self.tries_entry = Entry(self.detail_frame, width=18, textvariable=self.num_tries)
+
+        self.title_lbl.grid(row=0, column=0, sticky=W, padx=5, pady=2)
+        self.title_entry.grid(row=0, column=1, sticky=EW, padx=5)
+
+        self.date_lbl.grid(row=1, column=0, sticky=W, padx=5, pady=2)
+        self.date_entry.grid(row=1, column=1, sticky=EW, padx=5)
+
+        self.grade_lbl.grid(row=2, column=0, sticky=W, padx=5, pady=2)
+        self.grade_entry.grid(row=2, column=1, sticky=EW, padx=5)
+
+        self.place_lbl.grid(row=3, column=0, sticky=W, padx=5, pady=2)
+        self.place_entry.grid(row=3, column=1, sticky=EW, padx=5)
+
+        self.tries_lbl.grid(row=4, column=0, sticky=W, padx=5, pady=2)
+        self.tries_entry.grid(row=4, column=1, sticky=EW, padx=5)
+
+
+        self.os_cb = Checkbutton(self.detail_frame, text="OS", variable=self.os_var)
+        self.flash_cb = Checkbutton(self.detail_frame, text="Flash", variable=self.flash_var)
+        self.rp_cb = Checkbutton(self.detail_frame, text="RP", variable=self.rp_var)
+
+        self.os_cb.grid(row=5, column=0, sticky=W, padx=5)
+        self.flash_cb.grid(row=6, column=0, sticky=W, padx=5)
+        self.rp_cb.grid(row=7, column=0, sticky=W, padx=5)
+
+        # phot
+        self.media_frame = Frame(self.detail_frame, relief=SOLID, bd=1)
+        self.media_frame.grid(row=0, column=2, rowspan=6, padx=10, pady=5, sticky=NSEW)
+
+        self.detail_frame.rowconfigure(0, weight=1)
+        self.detail_frame.rowconfigure(1, weight=1)
+        self.detail_frame.rowconfigure(2, weight=1)
+        self.detail_frame.rowconfigure(3, weight=1)
+        self.detail_frame.rowconfigure(4, weight=1)
+
+        Label(self.media_frame, text="Photo / Video").place(relx=0.5, rely=0.5, anchor=CENTER)
+
+        # notes
+        self.notes_text = Text(self.detail_frame, height=8)
+        self.notes_text.grid(row=8, column=0, columnspan=3, sticky=NSEW, padx=5, pady=5)
+
+        self.detail_frame.columnconfigure(1, weight=1)
 
         # buttons (add, edit, delete)
-        self.add_button = Button(self.journal_tab, text="Add")
+        self.button_frame = Frame(self.journal_tab)
+        self.button_frame.pack(fill=X)
+
+        bw = 8
+        bh = 1
+        self.add_button = Button(self.button_frame, text="Add", width=bw, height=bh, command=self.add)
+        self.edit_button = Button(self.button_frame, text="Edit", width=bw, height=bh, command=self.edit)
+        self.delete_button = Button(self.button_frame, text="Delete", width=bw, height=bh, command=self.delete)
+        self.add_button.pack(padx=5, pady = 5, side=LEFT, anchor=E, expand=True)
+        self.edit_button.pack(padx=5, pady = 5, side=LEFT, anchor=E)
+        self.delete_button.pack(padx=5, pady = 5, side=LEFT, anchor=W, expand=True)
 
         # stats tab
         ttk.Label(self.stats_tab, text="Stats tab").pack(fill=BOTH)
@@ -76,6 +166,32 @@ class App:
     def new_options_window(self):
         print("Opened new options window")
 
+
+    def add(self):
+        print("pressed add button")
+
+    def show(self, row):
+        self.row = row
+        record = data[row]
+
+        self.date.set(record.get("date"))
+        self.route_name.set(record.get("route_name"))
+        self.grade.set(record.get("grade"))
+        self.place.set(record.get("place"))
+        self.num_tries.set(record.get("num_tries"))
+
+        self.os_var.set(record.get("os_var"))
+        self.flash_var.set(record.get("flash_var"))
+        self.rp_var.set(record.get("rp_var"))
+
+        self.notes_text.delete("1.0", END)
+        self.notes_text.insert(END, record.get("note"))
+
+    def edit(self):
+        print("pressed edit button")
+    
+    def delete(self):
+        print("pressed delete button")
 
 root = Tk()
 app = App(root)
