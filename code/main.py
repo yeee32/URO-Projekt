@@ -3,6 +3,8 @@ from tkinter import ttk
 import tkinter.font as tf
 import MultiListbox as table
 from data import data
+from tkinter import filedialog as fd
+from PIL import Image, ImageTk
 
 class App:
     def __init__(self, root):
@@ -28,6 +30,7 @@ class App:
         self.os_var = BooleanVar()
         self.flash_var = BooleanVar()
         self.rp_var = BooleanVar()
+        self.photo_path = StringVar()
         # Menu at top 
         self.top_menu = Menu(self.root)
 
@@ -131,7 +134,7 @@ class App:
         self.rp_cb.grid(row=7, column=0, sticky=W, padx=5)
 
         # phot
-        self.media_frame = Frame(self.detail_frame, relief=SOLID, bd=1)
+        self.media_frame = Frame(self.detail_frame)
         self.media_frame.grid(row=0, column=2, rowspan=6, padx=10, pady=5, sticky=NSEW)
 
         self.detail_frame.rowconfigure(0, weight=1)
@@ -140,7 +143,7 @@ class App:
         self.detail_frame.rowconfigure(3, weight=1)
         self.detail_frame.rowconfigure(4, weight=1)
 
-        Label(self.media_frame, text="Photo / Video").place(relx=0.5, rely=0.5, anchor=CENTER)
+        # Label(self.media_frame, text="Photo / Video").place(relx=0.5, rely=0.5, anchor=CENTER)
 
         # notes
         self.notes_text = Text(self.detail_frame, height=8)
@@ -163,7 +166,6 @@ class App:
 
         # stats tab
         ttk.Label(self.stats_tab, text="Stats tab").pack(fill=BOTH)
-
     
     def new_options_window(self):
         print("Opened new options window")
@@ -179,9 +181,6 @@ class App:
         self.os_var.set(False)
         self.flash_var.set(False)
         self.rp_var.set(False)
-        if self.notes:
-            self.notes.delete("1.0", END)
-        
         self.edit()
         
     def save(self):
@@ -195,12 +194,14 @@ class App:
             "os_var": self.os_var.get(),
             "flash_var": self.flash_var.get(),
             "rp_var": self.rp_var.get(),
-            "note": self.notes.get("1.0", END).strip()
+            "note": self.notes.get("1.0", END).strip(),
+            "photo_path": getattr(self, "current_photo_path", None)
         }
 
         if self.row is None:
             data.append(record)
             self.mlb.insert(END, (record["date"], record["route_name"], record["grade"]))
+            self.row = len(data) -1 
         else:
             data[self.row] = record
             self.mlb.delete(self.row)
@@ -209,11 +210,13 @@ class App:
         self.notes_text.delete("1.0", END)
         self.notes_text.insert(END, record.get("note"))
         
+        self.show(self.row)
         self.edit_win.destroy()
+        
 
     def show(self, row):
         self.row = row
-        record = data[row]
+        record = data[self.row]
 
         self.date.set(record.get("date"))
         self.route_name.set(record.get("route_name"))
@@ -227,24 +230,44 @@ class App:
 
         self.notes_text.delete("1.0", END)
         self.notes_text.insert(END, record.get("note"))
+        
+        self.photo_path = record.get("photo_path")
+        
+        for widget in self.media_frame.winfo_children():
+            widget.destroy()
+        
+        if self.photo_path:
+            try:
+                self.image = Image.open(self.photo_path)
+                w = 350
+                h = 350
+                self.image.thumbnail((w, h))
+                self.displayed_photo = ImageTk.PhotoImage(self.image)
+                self.photolabel = Label(self.media_frame, image=self.displayed_photo)
+                self.photolabel.pack(expand=True)
+            except Exception as e:
+                Label(self.media_frame, text="Failed to load image").pack(expand=True)
+                print("Error loading photo:", e)
+
 
     def edit(self):
         print("pressed edit button")
-        global edit_win
         
         if self.edit_win is None or not self.edit_win.winfo_exists():
             self.edit_win = Toplevel()
             w = 650
             h = int(w * (2/3))
             self.edit_win.geometry(f"{w}x{h}")
-            self.edit_win.title("New Route")
+            self.edit_win.title("Route Details")
             
-            grades = ["5A","5A+","5B","5B+","5C","5C+",
-                    "6A","6A+","6B","6B+","6C","6C+",
-                    "7A","7A+","7B","7B+","7C","7C+",
-                    "8A","8A+","8B","8B+","8C","8C+",
-                    "9A","9A+","9B","9B+","9C"]
+            grades_french = ["5A","5A+","5B","5B+","5C","5C+",
+                            "6A","6A+","6B","6B+","6C","6C+",
+                            "7A","7A+","7B","7B+","7C","7C+",
+                            "8A","8A+","8B","8B+","8C","8C+",
+                            "9A","9A+","9B","9B+","9C"]
             
+            grades_v = ["V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13", "V14", "V15", "V16", "V17"]
+                        
             self.main = Frame(self.edit_win)
             self.main.pack(fill=BOTH, expand=True)
 
@@ -262,7 +285,7 @@ class App:
 
             add_row(0, "Date", Entry(self.form, textvariable=self.date, width=25))
             add_row(1, "Name", Entry(self.form, textvariable=self.route_name, width=25))
-            add_row(2, "Grade", ttk.Combobox(self.form, textvariable=self.grade, values=grades, width=25))
+            add_row(2, "Grade", ttk.Combobox(self.form, textvariable=self.grade, values=grades_french, width=25))
             add_row(3, "Place", Entry(self.form, textvariable=self.place, width=25))
             add_row(4, "Tries", Spinbox(self.form, from_=1, to=100, textvariable=self.num_tries, width=5))
                         
@@ -285,7 +308,7 @@ class App:
             self.photo = Frame(self.content, width=200, height=200)
             self.photo.grid(row=0, column=1, padx=30, pady=20)
 
-            Button(self.photo, text="Upload Photo").place(relx=0.5, rely=0.5, anchor=CENTER)
+            Button(self.photo, text="Upload Photo", command=self.upload_photo).place(relx=0.5, rely=0.5, anchor=CENTER)
 
             self.buttons = Frame(self.content)
             self.buttons.grid(row=1, column=0, columnspan=2, pady=20)
@@ -314,6 +337,21 @@ class App:
 
         self.notes_text.delete("1.0", END)
 
+    def upload_photo(self):
+        file = fd.askopenfilename(parent=None, title="Choose your file", filetypes=[("all files", "*.*"), ("gif files", "*.gif"), ("png files", "*.png"), ("jpg files", "*.jpg")])
+        if file:
+            img = Image.open(file)
+            w = 200
+            h = 350
+            img.thumbnail((w, h))
+            
+            self.photo_img = ImageTk.PhotoImage(img)
+            for widget in self.photo.winfo_children():
+                widget.destroy()
+                
+            Label(self.photo, image=self.photo_img).pack(expand=True)
+            self.current_photo_path = file
+            # print("Photo loaded:", file_path)
 root = Tk()
 app = App(root)
 root.mainloop()
