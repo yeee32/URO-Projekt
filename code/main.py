@@ -13,9 +13,11 @@ class App:
         self.root.geometry(f"{width}x{height}")
         self.root.resizable(False, False)
 
-
-        self.new_window = None
         self.row = None
+
+        # num of windows to open
+        self.add_win = None
+        self.edit_win = None
 
         self.date = StringVar()
         self.route_name = StringVar()
@@ -152,7 +154,7 @@ class App:
 
         bw = 8
         bh = 1
-        self.add_button = Button(self.button_frame, text="Add", width=bw, height=bh, command=self.add)
+        self.add_button = Button(self.button_frame, text="Add", width=bw, height=bh, command=self.new_add_window)
         self.edit_button = Button(self.button_frame, text="Edit", width=bw, height=bh, command=self.edit)
         self.delete_button = Button(self.button_frame, text="Delete", width=bw, height=bh, command=self.delete)
         self.add_button.pack(padx=5, pady = 5, side=LEFT, anchor=E, expand=True)
@@ -166,9 +168,48 @@ class App:
     def new_options_window(self):
         print("Opened new options window")
 
+    def new_add_window(self):
+        # reseting stuff
+        self.row = None    
+        self.date.set("")
+        self.route_name.set("")
+        self.grade.set("")
+        self.place.set("")
+        self.num_tries.set("")
+        self.os_var.set(False)
+        self.flash_var.set(False)
+        self.rp_var.set(False)
+        if self.notes:
+            self.notes.delete("1.0", END)
+        
+        self.edit()
+        
+    def save(self):
+        print("pressed save")
+        record = {
+            "date": self.date.get(),
+            "route_name": self.route_name.get(),
+            "grade": self.grade.get(),
+            "place": self.place.get(),
+            "num_tries": self.num_tries.get(),
+            "os_var": self.os_var.get(),
+            "flash_var": self.flash_var.get(),
+            "rp_var": self.rp_var.get(),
+            "note": self.notes.get("1.0", END).strip()
+        }
 
-    def add(self):
-        print("pressed add button")
+        if self.row is None:
+            data.append(record)
+            self.mlb.insert(END, (record["date"], record["route_name"], record["grade"]))
+        else:
+            data[self.row] = record
+            self.mlb.delete(self.row)
+            self.mlb.insert(self.row, (record["date"], record["route_name"], record["grade"]))
+        
+        self.notes_text.delete("1.0", END)
+        self.notes_text.insert(END, record.get("note"))
+        
+        self.edit_win.destroy()
 
     def show(self, row):
         self.row = row
@@ -189,9 +230,89 @@ class App:
 
     def edit(self):
         print("pressed edit button")
+        global edit_win
+        
+        if self.edit_win is None or not self.edit_win.winfo_exists():
+            self.edit_win = Toplevel()
+            w = 650
+            h = int(w * (2/3))
+            self.edit_win.geometry(f"{w}x{h}")
+            self.edit_win.title("New Route")
+            
+            grades = ["5A","5A+","5B","5B+","5C","5C+",
+                    "6A","6A+","6B","6B+","6C","6C+",
+                    "7A","7A+","7B","7B+","7C","7C+",
+                    "8A","8A+","8B","8B+","8C","8C+",
+                    "9A","9A+","9B","9B+","9C"]
+            
+            self.main = Frame(self.edit_win)
+            self.main.pack(fill=BOTH, expand=True)
+
+            self.main.columnconfigure(0, weight=1)
+            self.main.rowconfigure(0, weight=1)
+            self.content = Frame(self.main)
+            self.content.grid(row=0, column=0)
+
+            self.form = Frame(self.content)
+            self.form.grid(row=0, column=0, padx=20, pady=20, sticky=N)
+
+            def add_row(row, label, widget):
+                Label(self.form, text=label).grid(row=row, column=0, sticky=W, pady=4)
+                widget.grid(row=row, column=1, sticky=W)
+
+            add_row(0, "Date", Entry(self.form, textvariable=self.date, width=25))
+            add_row(1, "Name", Entry(self.form, textvariable=self.route_name, width=25))
+            add_row(2, "Grade", ttk.Combobox(self.form, textvariable=self.grade, values=grades, width=25))
+            add_row(3, "Place", Entry(self.form, textvariable=self.place, width=25))
+            add_row(4, "Tries", Spinbox(self.form, from_=1, to=100, textvariable=self.num_tries, width=5))
+                        
+            style_frame = Frame(self.form)
+            Checkbutton(style_frame, text="OS", variable=self.os_var).pack(side=LEFT)
+            Checkbutton(style_frame, text="Flash", variable=self.flash_var).pack(side=LEFT)
+            Checkbutton(style_frame, text="RP", variable=self.rp_var).pack(side=LEFT)
+
+            add_row(5, "Style", style_frame)
+
+            Label(self.form, text="Notes").grid(row=6, column=0, sticky=NW)
+
+            self.notes = Text(self.form, width=40, height=6)
+            self.notes.grid(row=7, column=0, columnspan=2, pady=5)
+            
+            if self.row is not None:
+                record = data[self.row]
+                self.notes.insert("1.0", record.get("note"))
+
+            self.photo = Frame(self.content, width=200, height=200)
+            self.photo.grid(row=0, column=1, padx=30, pady=20)
+
+            Button(self.photo, text="Upload Photo").place(relx=0.5, rely=0.5, anchor=CENTER)
+
+            self.buttons = Frame(self.content)
+            self.buttons.grid(row=1, column=0, columnspan=2, pady=20)
+
+            Button(self.buttons, text="Save", width=12, command=self.save).pack(side=LEFT, padx=10)
+            Button(self.buttons, text="Cancel", width=12, command=self.edit_win.destroy).pack(side=LEFT)
+    
     
     def delete(self):
-        print("pressed delete button")
+        if self.row is None:
+            return
+        
+        del data[self.row]
+        self.mlb.delete(self.row)
+        
+        # clearing after deleting
+        self.row = None
+        self.date.set("")
+        self.route_name.set("")
+        self.grade.set("")
+        self.place.set("")
+        self.num_tries.set("")
+        self.os_var.set(False)
+        self.flash_var.set(False)
+        self.rp_var.set(False)
+
+        self.notes_text.delete("1.0", END)
 
 root = Tk()
 app = App(root)
