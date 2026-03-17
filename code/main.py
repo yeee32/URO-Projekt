@@ -459,6 +459,7 @@ class App:
         self.os_var.set(False)
         self.flash_var.set(False)
         self.rp_var.set(False)
+        setattr(self, "current_photo_path", None)
         self.edit()
         
     def save(self):
@@ -613,7 +614,7 @@ class App:
         self.os_var.set(False)
         self.flash_var.set(False)
         self.rp_var.set(False)
-
+        self.photo_path.set(None)
         self.notes_text.delete("1.0", END)
         self.update_stats()
     
