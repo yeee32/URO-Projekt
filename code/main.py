@@ -9,7 +9,7 @@ import matplotlib.pyplot as pp
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.ticker as ticker
 from datetime import datetime
-
+        
 class App:
     def __init__(self, root):
         self.root = root
@@ -23,7 +23,7 @@ class App:
 
         # num of windows to open
         self.edit_win = None
-        self.options_win = None
+        self.settings_win = None
 
         self.date = StringVar()
         self.route_name = StringVar()
@@ -38,9 +38,10 @@ class App:
         # Menu at top 
         self.top_menu = Menu(self.root)
         
-        # options vars
+        # settings vars
         self.theme_var = StringVar(value="light")
         self.color_scheme_var = StringVar(value="blue")
+        self.grade_system_var = StringVar(value="French")
         
         self.color_map = {
             "blue": "#4A90E2",
@@ -48,7 +49,6 @@ class App:
             "orange": "#FF9800",
             "purple": "#9C27B0"
         }
-        
         
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -58,9 +58,9 @@ class App:
         self.file.add_command(label="Quit", command=self.root.quit)
         self.root.config(menu = self.top_menu)
 
-        # options
-        self.options = Menu(self.top_menu, tearoff=0)
-        self.top_menu.add_command(label="Options", command=self.new_options_window) # opens new options window
+        # settings
+        self.settings = Menu(self.top_menu, tearoff=0)
+        self.top_menu.add_command(label="Settings", command=self.new_settings_window) # opens new settings window
         self.root.config(menu = self.top_menu)
     
         # style
@@ -121,11 +121,11 @@ class App:
         self.place_label = Label(self.detail_frame, text="Place", font=label_font)
         self.tries_label = Label(self.detail_frame, text="Tries", font=label_font)
 
-        self.title_entry = Entry(self.detail_frame, width=18, textvariable=self.route_name)
-        self.date_entry = Entry(self.detail_frame, width=18, textvariable=self.date)
-        self.grade_entry = Entry(self.detail_frame, width=18, textvariable=self.grade)
-        self.place_entry = Entry(self.detail_frame, width=18, textvariable=self.place)
-        self.tries_entry = Entry(self.detail_frame, width=18, textvariable=self.num_tries)
+        self.title_entry = Entry(self.detail_frame, width=18, textvariable=self.route_name, state=DISABLED, disabledbackground="white", disabledforeground="black")
+        self.date_entry = Entry(self.detail_frame, width=18, textvariable=self.date, state=DISABLED, disabledbackground="white", disabledforeground="black")
+        self.grade_entry = Entry(self.detail_frame, width=18, textvariable=self.grade, state=DISABLED, disabledbackground="white", disabledforeground="black")
+        self.place_entry = Entry(self.detail_frame, width=18, textvariable=self.place, state=DISABLED, disabledbackground="white", disabledforeground="black")
+        self.tries_entry = Entry(self.detail_frame, width=18, textvariable=self.num_tries, state=DISABLED, disabledbackground="white", disabledforeground="black")
 
         self.title_label.grid(row=0, column=0, sticky=W, padx=5, pady=2)
         self.title_entry.grid(row=0, column=1, sticky=EW, padx=5)
@@ -143,9 +143,9 @@ class App:
         self.tries_entry.grid(row=4, column=1, sticky=EW, padx=5)
 
 
-        self.os_cb = Checkbutton(self.detail_frame, text="OS", variable=self.os_var)
-        self.flash_cb = Checkbutton(self.detail_frame, text="Flash", variable=self.flash_var)
-        self.rp_cb = Checkbutton(self.detail_frame, text="RP", variable=self.rp_var)
+        self.os_cb = Checkbutton(self.detail_frame, text="OS", variable=self.os_var, state=DISABLED, disabledforeground="black")
+        self.flash_cb = Checkbutton(self.detail_frame, text="Flash", variable=self.flash_var, state=DISABLED, disabledforeground="black")
+        self.rp_cb = Checkbutton(self.detail_frame, text="RP", variable=self.rp_var, state=DISABLED, disabledforeground="black")
 
         self.os_cb.grid(row=5, column=0, sticky=W, padx=5)
         self.flash_cb.grid(row=6, column=0, sticky=W, padx=5)
@@ -162,7 +162,7 @@ class App:
         self.detail_frame.rowconfigure(4, weight=1)
 
         # notes
-        self.notes_text = Text(self.detail_frame, height=8)
+        self.notes_text = Text(self.detail_frame, height=8, state=DISABLED)
         self.notes_text.grid(row=8, column=0, columnspan=3, sticky=NSEW, padx=5, pady=5)
 
         self.detail_frame.columnconfigure(1, weight=1)
@@ -189,8 +189,16 @@ class App:
         
         self.filter_place = Label(self.filter_label_frame, text="Place")
         self.filter_place.pack(padx=5, pady=5, side=LEFT, anchor=CENTER)
-        self.place_entry = Entry(self.filter_label_frame)
-        self.place_entry.pack(padx=5, pady=5, side=LEFT, anchor=CENTER)
+        
+        self.all = StringVar(value="All")
+        
+        self.place_combo = ttk.Combobox(
+            self.filter_label_frame,
+            textvariable=self.all,
+            values=self.get_unique_places()
+        )
+        
+        self.place_combo.pack(padx=5, pady=5, side=LEFT, anchor=CENTER)
 
         self.filter_button = Button(self.filter_label_frame, text="Search", width=10, height=1, command=self.filter)
         self.filter_button.pack(padx=5, pady=5, side=RIGHT, anchor=CENTER)
@@ -238,11 +246,19 @@ class App:
         self.update_stats()
         self.draw_histogram()
     
+    def get_unique_places(self):
+        places = list(set(item.get("place") for item in data if item.get("place")))
+        places.insert(0, "All")
+        return places
+    
     def on_close(self): # fixes closing with [x]
         pp.close("all")
         self.root.destroy()
     
-    def draw_histogram(self):
+    def draw_histogram(self, curr_data = None):
+        if curr_data == None:
+            curr_data = data
+        
         grades = [
             "5A","5A+","5B","5B+","5C","5C+",
             "6A","6A+","6B","6B+","6C","6C+",
@@ -253,8 +269,8 @@ class App:
 
         counts = {g:0 for g in grades}
 
-        for r in data:
-            grade = r.get("grade")
+        for i in curr_data:
+            grade = i.get("grade")
             if grade in counts:
                 counts[grade] += 1
 
@@ -281,24 +297,26 @@ class App:
         canvas.draw()
         canvas.get_tk_widget().pack(fill=BOTH, expand=True)
         
-    def update_stats(self):
-        total = len(data)
+    def update_stats(self, curr_data = None):
+        if curr_data == None:
+            curr_data = data
+        total = len(curr_data)
 
-        flash = sum(1 for r in data if r.get("flash_var"))
-        os_count = sum(1 for r in data if r.get("os_var"))
+        flash = sum(1 for r in curr_data if r.get("flash_var"))
+        os_count = sum(1 for r in curr_data if r.get("os_var"))
 
-        grades = [r.get("grade") for r in data if r.get("grade")]
+        grades = [r.get("grade") for r in curr_data if r.get("grade")]
         hardest = max(grades) if grades else "-"
 
-        locations = set(r.get("place") for r in data if r.get("place"))
+        locations = set(r.get("place") for r in curr_data if r.get("place"))
 
-        self.total_entry.config(textvariable=total)
-        self.flash_entry.config(textvariable=flash)
-        self.os_entry.config(textvariable=os_count)
-        # self.avg_entry.config(textvariable=avg)
-        self.hardest_enry.config(textvariable=hardest)
-        self.locations_entry.config(textvariable=locations)
-        
+        self.total_entry.config(textvariable=total, state=NORMAL)
+        self.flash_entry.config(textvariable=flash, state=NORMAL)
+        self.os_entry.config(textvariable=os_count, state=NORMAL)
+        self.avg_entry.config(state=NORMAL)
+        self.hardest_enry.config(textvariable=hardest, state=NORMAL)
+        self.locations_entry.config(textvariable=locations, state=NORMAL)
+
         self.total_entry.delete(0, END)
         self.total_entry.insert(0, total)
 
@@ -316,65 +334,88 @@ class App:
 
         self.locations_entry.delete(0, END)
         self.locations_entry.insert(0, len(locations))
+
+        self.total_entry.config(textvariable=total, state=DISABLED, disabledbackground="white", disabledforeground="black")
+        self.flash_entry.config(textvariable=flash, state=DISABLED, disabledbackground="white", disabledforeground="black")
+        self.os_entry.config(textvariable=os_count, state=DISABLED, disabledbackground="white", disabledforeground="black")
+        self.avg_entry.config(state=DISABLED, disabledbackground="white", disabledforeground="black")
+        self.hardest_enry.config(textvariable=hardest, state=DISABLED, disabledbackground="white", disabledforeground="black")
+        self.locations_entry.config(textvariable=locations, state=DISABLED, disabledbackground="white", disabledforeground="black")
+        
         self.draw_histogram()
         
-    def new_options_window(self):
-        if self.options_win is None or not self.options_win.winfo_exists():
-            self.options_win = Toplevel()
+    def new_settings_window(self):
+        if self.settings_win is None or not self.settings_win.winfo_exists():
+            self.settings_win = Toplevel()
             
-            self.options_win.title("Options")
+            self.settings_win.title("Settings")
 
             w = 400
             h = 350
-            self.options_win.geometry(f"{w}x{h}")
-            self.options_win.resizable(False, False)
+            self.settings_win.geometry(f"{w}x{h}")
+            self.settings_win.resizable(False, False)
 
-            main = Frame(self.options_win)
-            main.pack(fill=BOTH, expand=True, padx=20, pady=20)
+            self.setting_frame = Frame(self.settings_win)
+            self.setting_frame.pack(fill=BOTH, expand=True, padx=20, pady=20)
 
-            theme_frame = LabelFrame(main, text="Theme")
-            theme_frame.pack(fill=X, pady=10)
+            self.theme_frame = LabelFrame(self.setting_frame, text="Theme")
+            self.theme_frame.pack(fill=X, pady=10)
 
-            self.light_button = Radiobutton(theme_frame, text="Light", variable=self.theme_var, value="light")
+            self.light_button = Radiobutton(self.theme_frame, text="Light", variable=self.theme_var, value="light")
             self.light_button.pack(anchor=W, padx=10, pady=3)
-            self.dark_button = Radiobutton(theme_frame, text="Dark", variable=self.theme_var, value="dark")
+            self.dark_button = Radiobutton(self.theme_frame, text="Dark", variable=self.theme_var, value="dark")
             self.dark_button.pack(anchor=W, padx=10, pady=3)
 
-            color_frame = LabelFrame(main, text="Color scheme")
-            color_frame.pack(fill=X, pady=10)
+            self.grades_label_frame = LabelFrame(self.setting_frame, text="Grade system")
+            self.grades_label_frame.pack(fill=X, pady=10)
+
+            grade_systems = ["French", "V-Scale", "YDS"]
+
+            self.grade_combo = ttk.Combobox(
+                self.grades_label_frame,
+                textvariable=self.grade_system_var,
+                values=grade_systems,
+                state="readonly"
+            )
+            self.grade_combo.pack(padx=10, pady=10)
+
+
+            self.color_frame = LabelFrame(self.setting_frame, text="Color scheme")
+            self.color_frame.pack(fill=X, pady=10)
 
             schemes = ["blue", "green", "orange", "purple"]
 
             self.color_combo = ttk.Combobox(
-                color_frame,
+                self.color_frame,
                 textvariable=self.color_scheme_var,
                 values=schemes,
                 state="readonly"
             )
             self.color_combo.pack(padx=10, pady=10)
 
-            button_frame = Frame(main)
-            button_frame.pack(side=BOTTOM, pady=10)
+            self.button_frame = Frame(self.setting_frame)
+            self.button_frame.pack(side=BOTTOM, pady=10)
 
-            self.save_button = Button(button_frame, text="Save", width=10, command=self.save_options)
+            self.save_button = Button(self.button_frame, text="Save", width=10, command=self.save_settings, bg=self.color_map.get(self.color_scheme_var.get()))
             self.save_button.pack(side=LEFT, padx=10)
-            self.cancel_button = Button(button_frame, text="Cancel", width=10, command=self.options_win.destroy)
+            self.cancel_button = Button(self.button_frame, text="Cancel", width=10, command=self.settings_win.destroy, bg= self.color_map.get(self.color_scheme_var.get()))
             self.cancel_button.pack(side=LEFT)
 
-    def save_options(self):
+    def save_settings(self):
 
         theme = self.theme_var.get()
         scheme = self.color_scheme_var.get()
+        grade_sys = self.grade_system_var.get()
 
         print("Theme:", theme)
         print("Color scheme:", scheme)
+        print("Grade system:", grade_sys)
         self.apply_color_scheme()
-        self.options_win.destroy()
+        self.settings_win.destroy()
 
     def apply_color_scheme(self):
         color = self.color_map.get(self.color_scheme_var.get(), "#4A90E2")
 
-        # main window buttons
         self.add_button.config(bg=color)
         self.edit_button.config(bg=color)
         self.delete_button.config(bg=color)
@@ -387,8 +428,21 @@ class App:
 
         self.draw_histogram()
 
+    def update_filter(self):
+        unique_places = self.get_unique_places()
+        self.place_combo.config(values=unique_places)
+
     def filter(self):
         print("pressed filter button")
+        self.curr_place = self.place_combo.get()
+        
+        if self.curr_place == "All":
+            curr_data = data
+        else:
+            curr_data = [r for r in data if r.get("place") == self.curr_place]
+        
+        self.update_stats(curr_data)
+        self.draw_histogram(curr_data)
 
     def new_add_window(self):
         # reseting stuff
@@ -408,7 +462,6 @@ class App:
         self.edit()
         
     def save(self):
-        print("pressed save")
         record = {
             "date": self.date.get(),
             "route_name": self.route_name.get(),
@@ -434,6 +487,7 @@ class App:
         self.notes_text.delete("1.0", END)
         self.notes_text.insert(END, record.get("note"))
         
+        self.update_filter()
         self.update_stats()
         self.show(self.row)
         self.edit_win.destroy()
@@ -453,8 +507,10 @@ class App:
         self.flash_var.set(record.get("flash_var"))
         self.rp_var.set(record.get("rp_var"))
 
+        self.notes_text.config(state=NORMAL)
         self.notes_text.delete("1.0", END)
         self.notes_text.insert(END, record.get("note"))
+        self.notes_text.config(state=DISABLED)
         
         self.photo_path = record.get("photo_path")
         
@@ -462,20 +518,16 @@ class App:
             widget.destroy()
         
         if self.photo_path:
+            self.image = Image.open(self.photo_path)
+            w = 350
+            h = 350
+            self.image.thumbnail((w, h))
+            self.displayed_photo = ImageTk.PhotoImage(self.image)
+            self.photolabel = Label(self.media_frame, image=self.displayed_photo)
+            self.photolabel.pack(expand=True)
 
-                self.image = Image.open(self.photo_path)
-                w = 350
-                h = 350
-                self.image.thumbnail((w, h))
-                self.displayed_photo = ImageTk.PhotoImage(self.image)
-                self.photolabel = Label(self.media_frame, image=self.displayed_photo)
-                self.photolabel.pack(expand=True)
-            # except Exception as e:
-            #     Label(self.media_frame, text="Failed to load image").pack(expand=True)
-            #     print("Error loading photo:", e)
-
-
-    def edit(self):        
+    def edit(self):    
+        max_tries = 500    
         if self.edit_win is None or not self.edit_win.winfo_exists():
             self.edit_win = Toplevel()
             w = 650
@@ -506,16 +558,19 @@ class App:
 
             add_row(0, "Date", Entry(self.form, textvariable=self.date, width=25))
             add_row(1, "Name", Entry(self.form, textvariable=self.route_name, width=25))
-            add_row(2, "Grade", ttk.Combobox(self.form, textvariable=self.grade, values=grades, width=25))
+            add_row(2, "Grade", ttk.Combobox(self.form, textvariable=self.grade, values=grades, width=25, state="readonly"))
             add_row(3, "Place", Entry(self.form, textvariable=self.place, width=25))
-            add_row(4, "Tries", Spinbox(self.form, from_=1, to=100, textvariable=self.num_tries, width=5))
+            add_row(4, "Tries", Spinbox(self.form, from_=1, to=max_tries, textvariable=self.num_tries, width=5))
                         
-            style_frame = Frame(self.form)
-            Checkbutton(style_frame, text="OS", variable=self.os_var).pack(side=LEFT)
-            Checkbutton(style_frame, text="Flash", variable=self.flash_var).pack(side=LEFT)
-            Checkbutton(style_frame, text="RP", variable=self.rp_var).pack(side=LEFT)
+            self.style_frame = Frame(self.form)
+            self.os_cb = Checkbutton(self.style_frame, text="OS", variable=self.os_var)
+            self.os_cb.pack(side=LEFT)
+            self.flash_cb = Checkbutton(self.style_frame, text="Flash", variable=self.flash_var)
+            self.flash_cb.pack(side=LEFT)
+            self.rp_cp = Checkbutton(self.style_frame, text="RP", variable=self.rp_var)
+            self.rp_cp.pack(side=LEFT)
 
-            add_row(5, "Style", style_frame)
+            add_row(5, "Style", self.style_frame)
 
             Label(self.form, text="Notes").grid(row=6, column=0, sticky=NW)
 
@@ -529,15 +584,15 @@ class App:
             self.photo = Frame(self.content, width=200, height=200)
             self.photo.grid(row=0, column=1, padx=30, pady=20)
 
-            self.upload = Button(self.photo, text="Upload Photo", command=self.upload_photo,bg=self.color_map.get(self.color_scheme_var.get()))
+            self.upload = Button(self.photo, text="Upload Photo", command=self.upload_photo, bg=self.color_map.get(self.color_scheme_var.get()))
             self.upload.place(relx=0.5, rely=0.5, anchor=CENTER)
             
             self.buttons = Frame(self.content)
             self.buttons.grid(row=1, column=0, columnspan=2, pady=20)
 
-            self.save_button = Button(self.buttons, text="Save", width=12, command=self.save)
+            self.save_button = Button(self.buttons, text="Save", width=12, command=self.save, bg=self.color_map.get(self.color_scheme_var.get()))
             self.save_button.pack(side=LEFT, padx=10)
-            self.cancel_button = Button(self.buttons, text="Cancel", width=12, command=self.edit_win.destroy)
+            self.cancel_button = Button(self.buttons, text="Cancel", width=12, command=self.edit_win.destroy, bg=self.color_map.get(self.color_scheme_var.get()))
             self.cancel_button.pack(side=LEFT)
     
     
@@ -576,8 +631,7 @@ class App:
                 
             Label(self.photo, image=self.photo_img).pack(expand=True)
             self.current_photo_path = file
-            
-    
+                
 root = Tk()
 app = App(root)
 root.mainloop()
