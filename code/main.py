@@ -6,7 +6,6 @@ from data import data
 from tkinter import filedialog as fd
 from PIL import Image, ImageTk
 import matplotlib.pyplot as pp
-import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.ticker as ticker
 from datetime import datetime
@@ -23,8 +22,8 @@ class App:
         self.row = None
 
         # num of windows to open
-        self.add_win = None
         self.edit_win = None
+        self.options_win = None
 
         self.date = StringVar()
         self.route_name = StringVar()
@@ -39,6 +38,19 @@ class App:
         # Menu at top 
         self.top_menu = Menu(self.root)
         
+        # options vars
+        self.theme_var = StringVar(value="light")
+        self.color_scheme_var = StringVar(value="blue")
+        
+        self.color_map = {
+            "blue": "#4A90E2",
+            "green": "#4CAF50",
+            "orange": "#FF9800",
+            "purple": "#9C27B0"
+        }
+        
+        
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
         # file
         self.file = Menu(self.top_menu, tearoff=0)
@@ -198,6 +210,8 @@ class App:
             label.grid(row=row, column=0, sticky=W, padx=5, pady=10)
             entry.grid(row=row, column=1, sticky=EW, padx=5, pady=10)
         
+        
+        # stats category info
         self.total_label = Label(self.stats_left, text="Total ascends", font=label_font)
         self.flash_label = Label(self.stats_left, text="Flash count", font=label_font)
         self.os_label = Label(self.stats_left, text="OS count", font=label_font)
@@ -219,13 +233,16 @@ class App:
         place_to_grid(4, self.avg_label, self.avg_entry)
         place_to_grid(5, self.locations_label, self.locations_entry)
         
+        self.apply_color_scheme()
         # graph
-        
         self.update_stats()
         self.draw_histogram()
     
+    def on_close(self): # fixes closing with [x]
+        pp.close("all")
+        self.root.destroy()
+    
     def draw_histogram(self):
-
         grades = [
             "5A","5A+","5B","5B+","5C","5C+",
             "6A","6A+","6B","6B+","6C","6C+",
@@ -245,7 +262,8 @@ class App:
         y = list(counts.values())
 
         fig, ax = pp.subplots(figsize=(6,4))
-        ax.bar(x, y)
+        col = self.color_map.get(self.color_scheme_var.get(), "black")
+        ax.bar(x, y, color=col)
 
         ax.set_title("Climbs per Grade")
         ax.set_xlabel("Grade")
@@ -301,7 +319,73 @@ class App:
         self.draw_histogram()
         
     def new_options_window(self):
-        print("Opened new options window")
+        if self.options_win is None or not self.options_win.winfo_exists():
+            self.options_win = Toplevel()
+            
+            self.options_win.title("Options")
+
+            w = 400
+            h = 350
+            self.options_win.geometry(f"{w}x{h}")
+            self.options_win.resizable(False, False)
+
+            main = Frame(self.options_win)
+            main.pack(fill=BOTH, expand=True, padx=20, pady=20)
+
+            theme_frame = LabelFrame(main, text="Theme")
+            theme_frame.pack(fill=X, pady=10)
+
+            self.light_button = Radiobutton(theme_frame, text="Light", variable=self.theme_var, value="light")
+            self.light_button.pack(anchor=W, padx=10, pady=3)
+            self.dark_button = Radiobutton(theme_frame, text="Dark", variable=self.theme_var, value="dark")
+            self.dark_button.pack(anchor=W, padx=10, pady=3)
+
+            color_frame = LabelFrame(main, text="Color scheme")
+            color_frame.pack(fill=X, pady=10)
+
+            schemes = ["blue", "green", "orange", "purple"]
+
+            self.color_combo = ttk.Combobox(
+                color_frame,
+                textvariable=self.color_scheme_var,
+                values=schemes,
+                state="readonly"
+            )
+            self.color_combo.pack(padx=10, pady=10)
+
+            button_frame = Frame(main)
+            button_frame.pack(side=BOTTOM, pady=10)
+
+            self.save_button = Button(button_frame, text="Save", width=10, command=self.save_options)
+            self.save_button.pack(side=LEFT, padx=10)
+            self.cancel_button = Button(button_frame, text="Cancel", width=10, command=self.options_win.destroy)
+            self.cancel_button.pack(side=LEFT)
+
+    def save_options(self):
+
+        theme = self.theme_var.get()
+        scheme = self.color_scheme_var.get()
+
+        print("Theme:", theme)
+        print("Color scheme:", scheme)
+        self.apply_color_scheme()
+        self.options_win.destroy()
+
+    def apply_color_scheme(self):
+        color = self.color_map.get(self.color_scheme_var.get(), "#4A90E2")
+
+        # main window buttons
+        self.add_button.config(bg=color)
+        self.edit_button.config(bg=color)
+        self.delete_button.config(bg=color)
+        self.filter_button.config(bg=color)
+
+        if self.edit_win and self.edit_win.winfo_exists():
+            self.save_button.config(bg=color)
+            self.cancel_button.config(bg=color)
+            self.upload.config(bg=color)
+
+        self.draw_histogram()
 
     def filter(self):
         print("pressed filter button")
@@ -378,7 +462,7 @@ class App:
             widget.destroy()
         
         if self.photo_path:
-            try:
+
                 self.image = Image.open(self.photo_path)
                 w = 350
                 h = 350
@@ -386,14 +470,12 @@ class App:
                 self.displayed_photo = ImageTk.PhotoImage(self.image)
                 self.photolabel = Label(self.media_frame, image=self.displayed_photo)
                 self.photolabel.pack(expand=True)
-            except Exception as e:
-                Label(self.media_frame, text="Failed to load image").pack(expand=True)
-                print("Error loading photo:", e)
+            # except Exception as e:
+            #     Label(self.media_frame, text="Failed to load image").pack(expand=True)
+            #     print("Error loading photo:", e)
 
 
-    def edit(self):
-        print("pressed edit button")
-        
+    def edit(self):        
         if self.edit_win is None or not self.edit_win.winfo_exists():
             self.edit_win = Toplevel()
             w = 650
@@ -447,13 +529,16 @@ class App:
             self.photo = Frame(self.content, width=200, height=200)
             self.photo.grid(row=0, column=1, padx=30, pady=20)
 
-            Button(self.photo, text="Upload Photo", command=self.upload_photo).place(relx=0.5, rely=0.5, anchor=CENTER)
-
+            self.upload = Button(self.photo, text="Upload Photo", command=self.upload_photo,bg=self.color_map.get(self.color_scheme_var.get()))
+            self.upload.place(relx=0.5, rely=0.5, anchor=CENTER)
+            
             self.buttons = Frame(self.content)
             self.buttons.grid(row=1, column=0, columnspan=2, pady=20)
 
-            Button(self.buttons, text="Save", width=12, command=self.save).pack(side=LEFT, padx=10)
-            Button(self.buttons, text="Cancel", width=12, command=self.edit_win.destroy).pack(side=LEFT)
+            self.save_button = Button(self.buttons, text="Save", width=12, command=self.save)
+            self.save_button.pack(side=LEFT, padx=10)
+            self.cancel_button = Button(self.buttons, text="Cancel", width=12, command=self.edit_win.destroy)
+            self.cancel_button.pack(side=LEFT)
     
     
     def delete(self):
@@ -491,6 +576,8 @@ class App:
                 
             Label(self.photo, image=self.photo_img).pack(expand=True)
             self.current_photo_path = file
+            
+    
 root = Tk()
 app = App(root)
 root.mainloop()
