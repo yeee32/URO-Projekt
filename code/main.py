@@ -24,6 +24,7 @@ class App:
         # num of windows to open
         self.edit_win = None
         self.settings_win = None
+        self.info_win = None
 
         self.date = StringVar()
         self.route_name = StringVar()
@@ -56,6 +57,7 @@ class App:
         self.file = Menu(self.top_menu, tearoff=0)
         self.top_menu.add_cascade(label = "File", menu = self.file)
         self.file.add_command(label="Quit", command=self.root.quit)
+        self.file.add_command(label="Info", command=self.info)
         self.root.config(menu = self.top_menu)
 
         # settings
@@ -155,11 +157,8 @@ class App:
         self.media_frame = Frame(self.detail_frame)
         self.media_frame.grid(row=0, column=2, rowspan=6, padx=10, pady=5, sticky=NSEW)
 
-        self.detail_frame.rowconfigure(0, weight=1)
-        self.detail_frame.rowconfigure(1, weight=1)
-        self.detail_frame.rowconfigure(2, weight=1)
-        self.detail_frame.rowconfigure(3, weight=1)
-        self.detail_frame.rowconfigure(4, weight=1)
+        for i in range(5):
+            self.detail_frame.rowconfigure(i, weight=1)
 
         # notes
         self.notes_text = Text(self.detail_frame, height=8, state=DISABLED)
@@ -245,6 +244,26 @@ class App:
         # graph
         self.update_stats()
         self.draw_histogram()
+    
+    def info(self):
+        print("pressed info")
+        self.info_win = Toplevel(self.root)
+        self.info_win.title("About")
+        self.info_win.geometry("400x200")
+        self.info_win.resizable(False, False)
+
+        # Frame for padding
+        frame = Frame(self.info_win, padx=20, pady=20)
+        frame.pack(fill=BOTH, expand=True)
+
+        # App information
+        Label(frame, text="Climbing Journal", font=("Arial", 16, "bold")).pack(pady=(0,10))
+        Label(frame, text="Version: 1.0").pack(pady=2)
+        Label(frame, text="Created by: OZA0021").pack(pady=2)
+        Label(frame, text="This application allows you to track your climbing routes,\nview statistics and upload photos.", justify=CENTER, wraplength=350).pack(pady=10)
+
+        # Close button
+        Button(frame, text="Close", width=10, command=self.info_win.destroy).pack(pady=5)
     
     def get_unique_places(self):
         places = list(set(item.get("place") for item in data if item.get("place")))
